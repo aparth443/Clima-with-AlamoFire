@@ -8,6 +8,7 @@
 
 import Foundation
 import CoreLocation
+import Alamofire
 
 
 protocol WeatherManagerDelegate{
@@ -16,8 +17,7 @@ protocol WeatherManagerDelegate{
 }
 
 struct WeatherManager{
-    let weatherURL = "https://api.openweathermap.org/data/2.5/weather?appid={updateYourOwnApiKey}&units=metric"
-    
+    let weatherURL = "https://api.openweathermap.org/data/2.5/weather?appid=086f14376a650140bf5997fce00f88ff&units=metric"
     var delegate: WeatherManagerDelegate?
     
     func fetchWeather(cityName: String){
@@ -33,27 +33,20 @@ struct WeatherManager{
     func performRequest(with urlString: String){
         //1. Create a URL
         
-        if let url = URL(string: urlString){
-            //2. create URLSession
-            let session = URLSession(configuration: .default)
-            
-            //3. Give session a task
-            
-            let task = session.dataTask(with: url) { data, response, error in
-                if error != nil{
-                    delegate?.didFailWithError(error!)
+        AF.request(urlString, method: .get, parameters: nil, encoding: URLEncoding.default, headers: nil, interceptor: nil)
+            .response { response in
+                switch response.result{
+                case .success(let data):
+                    do{
+                        if let weather = parseJSON(data!){
+                            self.delegate?.didUpdateWeather(self, weather: weather)
+                        }
+                    }
+                case .failure(let error):
+                    delegate?.didFailWithError(error)
                     return
                 }
-                
-                if let safeData = data {
-                    if let weather = parseJSON(safeData){
-                        self.delegate?.didUpdateWeather(self, weather: weather)
-                    }
-                }
             }
-            
-            task.resume()
-        }
     }
     
     func parseJSON(_ weatherData: Data)->WeatherModel?{
